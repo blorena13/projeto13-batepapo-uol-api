@@ -46,10 +46,11 @@ app.get("/participants", (req, res) => {
 
 app.post("/messages", (req, res) => {
     const { to, text, type } = req.body;
+    const user = req.headers.user;
     
     const time = dayjs().format('HH:mm:ss');
 
-    const newMessage = {to, text, type, time}
+    const newMessage = {from: user, to, text, type, time}
 
     const promise = db.collection("messages").insertOne(newMessage);
     promise.then(()=> res.sendStatus(201));
@@ -58,7 +59,14 @@ app.post("/messages", (req, res) => {
 })
 
 app.get("/messages", (req, res) => {
-    res.send();
+   
+    const { user } = req.headers.user;
+    const { type } = req.query;
+
+
+    const promise = db.collection("messages").find({}).toArray();
+    promise.then(message => res.send(message.filter(op => type ? op.type === type : true)));
+    promise.catch(() => res.sendStatus(500));
 })
 
 app.post("/status", (req, res) => {
