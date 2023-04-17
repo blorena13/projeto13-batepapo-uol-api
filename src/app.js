@@ -59,41 +59,50 @@ app.get("/participants", async (req, res) => {
     }
 });
 
-app.post("/messages", (req, res) => {
-    const {to, text, type} = req.body;
+app.post("/messages", async (req, res) => {
+    const { to, text, type } = req.body;
 
-    const user = req.headers;
+    const from = req.headers.user;
     const time = dayjs().format('HH:mm:ss');
-    const newMessage = { from: user, to, text, type, time }
+    const newMessage = { from, to, text, type, time }
 
     const messageSchema = Joi.object({
+        from: Joi.required(),
         to: Joi.string().required(),
         text: Joi.string().required(),
-        type: Joi.string(),
-        from: Joi.required()
     })
 
     const validation = messageSchema.validate(req.body, { abortEarly: false })
+
     if (validation.error) {
         const errors = validation.error.details.map(detail => detail.message)
         return res.status(422).send(errors);
     }
 
-    const promise = db.collection("messages").insertOne(newMessage);
-    promise.then(() => res.sendStatus(201))
-    .catch(() => res.sendStatus(500));
+    try {
+         await db.collection("messages").insertOne(newMessage);
+        res.sendStatus(201)
+    } catch (err) {
+        res.sendStatus(500);
+    }
 
 })
 
 app.get("/messages", (req, res) => {
-
+    const userID = req.headers.user;
     const { type } = req.query;
     const limit = parseInt(req.query.limit);
 
-
-    const promise = db.collection("messages").find({}).toArray();
+    const promise = db.collection("messages")
+        .find({
+            $or: [
+                { to: "Todos" },
+                { to: userID },
+                { from: userID },
+            ]
+        }).toArray();
     promise
-    .then(message => {
+        .then(message => {
 
             if (isNaN(limit) || limit <= 0) {
                 return res.sendStatus(422);
@@ -108,7 +117,7 @@ app.get("/messages", (req, res) => {
             }
         })
 
-    .catch(err => res.sendStatus(500));
+        .catch(err => res.sendStatus(500));
 });
 
 
