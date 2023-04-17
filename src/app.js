@@ -12,13 +12,26 @@ app.use(express.json());
 dotenv.config();
 
 const PORT = 5000;
-const participantes = [];
+
+
 
 let db;
 const mongoClient = new MongoClient(process.env.DATABASE_URL);
 mongoClient.connect()
     .then(() => db = mongoClient.db())
     .catch((err) => console.log(err.message))
+
+
+setInterval(() => {
+    const now = Date.now();
+    const inactive = participants.filter(p => now - p.lastStatus > 10000);
+
+    inactive.forEach(p => {
+        participants.slice(participants.indexOf(p), 1);
+
+        
+    });
+}, 15000);
 
 app.post("/participants", async (req, res) => {
 
@@ -102,6 +115,12 @@ app.post("/messages", async (req, res) => {
     }
 
     try {
+
+        const participant = await db.collection("participants").findOne({name: from});
+        if(!participant){
+            return res.status(422).send("Participante não encontrado na sala.");
+        }
+
          await db.collection("messages").insertOne(newMessage);
         res.sendStatus(201)
     } catch (err) {
@@ -145,6 +164,21 @@ app.get("/messages", (req, res) => {
 
 app.post("/status", (req, res) => {
 
-})
+    const user = req.headers.user;
+    if(!user){
+        return res.sendStatus(404);
+    }
+
+    const participant = participants.find(p => p.name === user);
+    if(!participant){
+        return res.sendStatus(404);
+    }
+
+    participant.lastStatus = Date.now();
+    return res.sendStatus(200);
+
+});
+
+
 
 app.listen(PORT, () => console.log(`rodando servidor na porta ${PORT}`));
