@@ -3,6 +3,7 @@ import cors from "cors";
 import { MongoClient } from "mongodb";
 import dotenv from "dotenv";
 import dayjs from "dayjs";
+import Joi, { valid } from "joi";
 
 const app = express();
 
@@ -19,7 +20,7 @@ mongoClient.connect()
     .then(() => db = mongoClient.db())
     .catch((err) => console.log(err.message))
 
-app.post("/participants", (req, res) => {
+app.post("/participants", async (req, res) => {
 
     const { name } = req.body;
     const lastStatus = Date.now();
@@ -29,28 +30,58 @@ app.post("/participants", (req, res) => {
         lastStatus
     }
 
+    const nameSchema = Joi.object({
+        name: Joi.string().required()
+    });
 
-    const promise = db.collection("participants").insertOne(obj);
-    promise.then(() => res.sendStatus(201));
-    promise.catch(() => res.sendStatus(500));
+    const validation = nameSchema.validate(req.body, { abortEarly: false })
 
-})
+    if (validation.error) {
+        const erros = validation.error.details.map(detail => detail.message);
+        res.status(422).send(erros);
+    }
 
-app.get("/participants", (req, res) => {
+    try {
+        await db.collection("participants").insertOne(obj);
+        res.sendStatus(201);
+    } catch (err) {
+        res.sendStatus(500)
+    }
+});
 
-    const promise = db.collection("participants").find({}).toArray();
-    promise.then(participante => res.send(participante));
-    promise.catch(() => res.sendStatus(500));
+app.get("/participants", async (req, res) => {
 
-})
+
+
+    try {
+        const participante = await db.collection("participants").find({}).toArray();
+        res.send(participante);
+    } catch (err) {
+        res.sendStatus(500)
+    }
+});
 
 app.post("/messages", (req, res) => {
-    const { to, text, type } = req.body;
-    const user = req.headers;
 
+    const user = req.headers;
     const time = dayjs().format('HH:mm:ss');
 
+
+    const messageSchema = Joi.object({
+        to: Joi.string().required(),
+        text: Joi.string().required(),
+        type: Joi.string().valid("message", "private_message"),
+        from: Joi.required()
+    })
+
+    const validation = messageSchema.validate(req.body, { abortEarly: false })
+    if (validation.error) {
+        const errors = validation.error.details.map(detail => detail.message)
+        return res.status(422).send(errors);
+    }
+
     const newMessage = { from: user, to, text, type, time }
+
 
     const promise = db.collection("messages").insertOne(newMessage);
     promise.then(() => res.sendStatus(201));
@@ -69,13 +100,13 @@ app.get("/messages", (req, res) => {
     promise.then(
         message => {
 
-            if ( isNaN(limit) || limit <= 0) {
+            if (isNaN(limit) || limit <= 0) {
                 res.sendStatus(422);
-            }else if (limit) {
+            } else if (limit) {
                 const limitedMessage = message.slice(0, limit);
                 const filteredMessage = limitedMessage.filter(op => type ? op.type === type : true);
                 res.send(filteredMessage);
-            
+
             } else {
                 const filteredMessage = message.filter(op => type ? op.type === type : true);
                 res.send(filteredMessage);
