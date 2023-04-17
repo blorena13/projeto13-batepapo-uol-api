@@ -135,7 +135,7 @@ app.get("/messages", (req, res) => {
     promise
         .then(message => {
 
-            if ( limit <= 0) {
+            if (isNaN(limit) || limit <= 0) {
                 return res.sendStatus(422);
             } else if (limit) {
                 const limitedMessage = message.slice(0, limit);
