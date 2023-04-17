@@ -22,16 +22,7 @@ mongoClient.connect()
     .catch((err) => console.log(err.message))
 
 
-setInterval(() => {
-    const now = Date.now();
-    const inactive = participants.filter(p => now - p.lastStatus > 10000);
 
-    inactive.forEach(p => {
-        participants.slice(participants.indexOf(p), 1);
-
-        
-    });
-}, 15000);
 
 app.post("/participants", async (req, res) => {
 
@@ -162,22 +153,57 @@ app.get("/messages", (req, res) => {
 });
 
 
-app.post("/status", (req, res) => {
+app.post("/status", async (req, res) => {
 
     const user = req.headers.user;
-    if(!user){
+
+try {
+    const now = Date.now();
+    const result = await db.collection("participants").findOneAndUpdate(
+        {name: user},
+        {$et: {lastStatus: now}},
+    )
+
+    if(!result.value){
         return res.sendStatus(404);
     }
+    res.sendStatus(200);
 
-    const participant = participants.find(p => p.name === user);
-    if(!participant){
-        return res.sendStatus(404);
+} catch(err){
+    res.sendStatus(500);
+
+}
+
+setInterval( async () => {
+
+    try{
+        const now = Date.now();
+        const inactive = await db.collection("participants")
+        .find({lastStatus:{$lt: now - 15000}})
+        .toArray();
+
+        inactive.forEach(async (p)=> {
+            await db.collection("participants").deleteOne({_id: p._id});
+
+            const finalMessage = {
+                from: p.name,
+                to: "Todos",
+                text: "sai da sala...",
+                type: "status",
+                time: dayjs().format("HH:mm:ss")
+            }
+            await db.collection("messages").insertOne(finalMessage);
+        });
+    } catch(err){
+        
     }
 
-    participant.lastStatus = Date.now();
-    return res.sendStatus(200);
+    
+}, 10000);
 
 });
+
+
 
 
 
