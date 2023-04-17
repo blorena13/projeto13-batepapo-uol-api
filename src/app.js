@@ -3,7 +3,7 @@ import cors from "cors";
 import { MongoClient } from "mongodb";
 import dotenv from "dotenv";
 import dayjs from "dayjs";
-import Joi, { valid } from "joi";
+import Joi from "joi";
 
 const app = express();
 
@@ -38,7 +38,7 @@ app.post("/participants", async (req, res) => {
 
     if (validation.error) {
         const erros = validation.error.details.map(detail => detail.message);
-        res.status(422).send(erros);
+        return res.status(422).send(erros);
     }
 
     try {
@@ -51,8 +51,6 @@ app.post("/participants", async (req, res) => {
 
 app.get("/participants", async (req, res) => {
 
-
-
     try {
         const participante = await db.collection("participants").find({}).toArray();
         res.send(participante);
@@ -62,15 +60,16 @@ app.get("/participants", async (req, res) => {
 });
 
 app.post("/messages", (req, res) => {
+    const {to, text, type} = req.body;
 
     const user = req.headers;
     const time = dayjs().format('HH:mm:ss');
-
+    const newMessage = { from: user, to, text, type, time }
 
     const messageSchema = Joi.object({
         to: Joi.string().required(),
         text: Joi.string().required(),
-        type: Joi.string().valid("message", "private_message"),
+        type: Joi.string(),
         from: Joi.required()
     })
 
@@ -80,41 +79,37 @@ app.post("/messages", (req, res) => {
         return res.status(422).send(errors);
     }
 
-    const newMessage = { from: user, to, text, type, time }
-
-
     const promise = db.collection("messages").insertOne(newMessage);
-    promise.then(() => res.sendStatus(201));
-    promise.catch(() => res.sendStatus(500));
+    promise.then(() => res.sendStatus(201))
+    .catch(() => res.sendStatus(500));
 
 })
 
 app.get("/messages", (req, res) => {
 
-    const { user } = req.headers;
     const { type } = req.query;
     const limit = parseInt(req.query.limit);
 
 
     const promise = db.collection("messages").find({}).toArray();
-    promise.then(
-        message => {
+    promise
+    .then(message => {
 
             if (isNaN(limit) || limit <= 0) {
-                res.sendStatus(422);
+                return res.sendStatus(422);
             } else if (limit) {
                 const limitedMessage = message.slice(0, limit);
                 const filteredMessage = limitedMessage.filter(op => type ? op.type === type : true);
-                res.send(filteredMessage);
+                return res.send(filteredMessage);
 
             } else {
                 const filteredMessage = message.filter(op => type ? op.type === type : true);
-                res.send(filteredMessage);
+                return res.send(filteredMessage);
             }
-        });
+        })
 
-    promise.catch(() => res.sendStatus(500));
-})
+    .catch(err => res.sendStatus(500));
+});
 
 
 app.post("/status", (req, res) => {
