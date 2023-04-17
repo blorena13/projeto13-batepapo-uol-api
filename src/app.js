@@ -23,7 +23,6 @@ mongoClient.connect()
 
 
 
-
 app.post("/participants", async (req, res) => {
 
     const { name } = req.body;
@@ -173,13 +172,14 @@ try {
     res.sendStatus(500);
 
 }
+});
 
 setInterval( async () => {
 
     try{
-        const now = Date.now();
+        const nowD = Date.now();
         const inactive = await db.collection("participants")
-        .find({lastStatus:{$lt: now - 15000}})
+        .find({lastStatus:{$lt: nowD - 15000}})
         .toArray();
 
         inactive.forEach(async (p)=> {
@@ -199,11 +199,7 @@ setInterval( async () => {
     }
 
     
-}, 10000);
-
-});
-
-
+}, 15000);
 
 
 
