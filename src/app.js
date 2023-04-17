@@ -49,7 +49,18 @@ app.post("/participants", async (req, res) => {
         }
 
         await db.collection("participants").insertOne(obj);
+
+        const newMessagePost = {
+            from: obj.name,
+            to: "Todos",
+            text: "entra na sala...",
+            type: 'status',
+            time: dayjs().format('HH:mm:ss')
+        };
+
+        await db.collection("messages").insertOne(newMessagePost);
         res.sendStatus(201);
+
     } catch (err) {
         res.sendStatus(500)
     }
@@ -57,7 +68,9 @@ app.post("/participants", async (req, res) => {
 
 app.get("/participants", async (req, res) => {
 
+
     try {
+
         const participante = await db.collection("participants").find({}).toArray();
         res.send(participante);
     } catch (err) {
@@ -73,10 +86,10 @@ app.post("/messages", async (req, res) => {
     const newMessage = { from, to, text, type, time }
 
     const messageSchema = Joi.object({
-        from: Joi.required(),
+        from: Joi.required().exist(),
         to: Joi.string().required(),
         text: Joi.string().required(),
-        type: Joi.string().valid("message", "private_message"),
+        type: Joi.string().valid("message", "private_message").required(),
     })
 
     const novoObj = {from, to, text, type} 
