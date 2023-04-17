@@ -57,7 +57,7 @@ app.post("/participants", async (req, res) => {
             from: obj.name,
             to: "Todos",
             text: "entra na sala...",
-            type: 'status',
+            type: "status",
             time: dayjs().format('HH:mm:ss')
         };
 
@@ -135,7 +135,7 @@ app.get("/messages", (req, res) => {
     promise
         .then(message => {
 
-            if (isNaN(limit) || limit <= 0) {
+            if ( limit <= 0) {
                 return res.sendStatus(422);
             } else if (limit) {
                 const limitedMessage = message.slice(0, limit);
@@ -153,14 +153,13 @@ app.get("/messages", (req, res) => {
 
 
 app.post("/status", async (req, res) => {
-
     const user = req.headers.user;
 
 try {
     const now = Date.now();
     const result = await db.collection("participants").findOneAndUpdate(
         {name: user},
-        {$et: {lastStatus: now}},
+        {$set: {lastStatus: now}},
     )
 
     if(!result.value){
@@ -168,10 +167,7 @@ try {
     }
     res.sendStatus(200);
 
-} catch(err){
-    res.sendStatus(500);
-
-}
+} catch(err){res.sendStatus(500);}
 });
 
 setInterval( async () => {
@@ -179,7 +175,7 @@ setInterval( async () => {
     try{
         const nowD = Date.now();
         const inactive = await db.collection("participants")
-        .find({lastStatus:{$lt: nowD - 15000}})
+        .find({lastStatus:{$lt: nowD - 10000}})
         .toArray();
 
         inactive.forEach(async (p)=> {
@@ -195,10 +191,8 @@ setInterval( async () => {
             await db.collection("messages").insertOne(finalMessage);
         });
     } catch(err){
-        
-    }
 
-    
+    }
 }, 15000);
 
 
