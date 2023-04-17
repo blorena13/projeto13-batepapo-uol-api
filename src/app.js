@@ -42,6 +42,12 @@ app.post("/participants", async (req, res) => {
     }
 
     try {
+
+        const existingParticipant = await db.collection("participants").findOne({name: obj.name});
+        if(existingParticipant){
+            return res.status(409).send("Já existe um participante com esse nome");
+        }
+
         await db.collection("participants").insertOne(obj);
         res.sendStatus(201);
     } catch (err) {
@@ -70,9 +76,12 @@ app.post("/messages", async (req, res) => {
         from: Joi.required(),
         to: Joi.string().required(),
         text: Joi.string().required(),
+        type: Joi.string().valid("message", "private_message"),
     })
 
-    const validation = messageSchema.validate(req.body, { abortEarly: false })
+    const novoObj = {from, to, text, type} 
+
+    const validation = messageSchema.validate(novoObj, { abortEarly: false })
 
     if (validation.error) {
         const errors = validation.error.details.map(detail => detail.message)
